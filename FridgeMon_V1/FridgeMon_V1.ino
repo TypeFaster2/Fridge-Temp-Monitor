@@ -6,7 +6,7 @@
 *                                                               *
 *****************************************************************/
 /*
-* Use FridgeMon_Sensor_Find_V1 to obtain the ROM code for one wire sensors (R=xxx)
+* Use FridgeMon_Sensor_serial to obtain the ROM code for one wire sensors (R=xxx)
 
 Version Changes:
 V1: Working Version
