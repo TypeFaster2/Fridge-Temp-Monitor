@@ -1,42 +1,19 @@
 /****************************************************************
-* Fridge tempreture monitor and logger.
-* Sensors in three frdige zones and Sensor outside
-* LCD Display Ethernet access
-* Logging with RTC
-* 
+* Fridge tempreture monitor and logger.                         *
+* Sensors in three frdige zones and Sensor outside              *
+* LCD Display Ethernet access                                   *
+* Logging with RTC                                              *
+*                                                               *
 *****************************************************************/
 /*
-* Use FridgeMon_V1 to obtain the ROM code for one wire sensors (R=xxx)
+* Use FridgeMon_Sensor_Find_V1 to obtain the ROM code for one wire sensors (R=xxx)
 
 Version Changes:
-V3: get temp is added as a function.
-V4: Added LCD and multiple sensor readings
-V5: Added a clock and show time on LCD
-V6: Added SD card. Had to move LCD pins
-    Set up so temps are logged once a minute
-V7: Stopped display moving with single digits.
-    Got sensor names right.
-    Added a flag into the log file for initilisation. 
-
-To do:
-Make getting the temp a function. Done
-Display multiple temps on the LCD Done
-Log the temps to an SD Card       Done
-Add a clock                       Done
-Add local sensor (sensor 4)
-Add web browser support (later)
-Set the Arduino to sleep while waiting for sensor temp conversion
-Stop the LCD display moving around when dropping below 10c                  Done
-Overwrite orphan charaters. Consider testing to see if they might be there. Done
-Bottom is on top, Top is on bottom and middle is outside                    Done
-Stop the LCD display moving around when there's a negative temp.
-
-Issues:
-Temp reading does not work at power up. Must be missing a reset. Fixed
+V1: Working Version
 
 */
 
-// Debug Code
+// Debug Code. Uncomment these to make active
 // #define TempDebug
 // #define TimeDebug
 // #define TextDebug
@@ -50,21 +27,22 @@ Temp reading does not work at power up. Must be missing a reset. Fixed
 #include <SD.h>
 
 // Global variables
-// LiquidCrystal lcd(7,8,9,10,11,12);     // Initialise LCD
+// LiquidCrystal lcd(7,8,9,10,11,12);  // Initialise LCD
 // Note SD Card uses  pins  4, 11, 12, 13
 // Note Ethernet uses pins 10, 11, 12, 13
-LiquidCrystal lcd(3,5,6,7,8,9);     // Initialise LCD
+LiquidCrystal lcd(3,5,6,7,8,9);        // Initialise LCD
 OneWire TempPin(2);                    // Initialise OneWire on pin 2
 PCF8583 p (0xA0);                      // RTC Address
 // int correct_address = 0;            // Not sure this is used. Picked up from RTC code
 
 // dtostrf(floatVar, minStringWidthIncDecimalPoint, numVarsAfterDecimal, charBuf);
-char s[32];                            // guess for dtostrf function
+char s[32];                            // buffer for dtostrf function
 
-// On the Ethernet Shield, CS is pin 4. Note that even if it's not
+// On the Ethernet Shield, CS is pin 10. Note that even if it's not
 // used as the CS pin, the hardware CS pin (10 on most Arduino boards,
 // 53 on the Mega) must be left as an output or the SD library
 // functions will not work.
+// Pin 4 on the Freetronics Etherten board
 const int chipSelect = 4;
 
  // OneWire Sensor addresses. There are the three I made into modules
@@ -73,7 +51,7 @@ const int chipSelect = 4;
                       {0x28, 0xB8, 0x76, 0x9E, 0x03, 0x00, 0x00, 0x59} };
                                                                                                   
  String SenseName[3][3] = { {"Top", "Top",    "T"}, // Sensor names
-                            {"Out", "Outside", "O"},
+                            {"Out", "Outside","O"},
                             {"Bot", "Bottom", "B"} };
 
 // LCD start locations for sensors (Col, Row)
@@ -117,7 +95,7 @@ void setup() {
   Serial.println(NextMinute);
 #endif TextDebug
 
-DataWrite("T,99.99,M,99.99,B,99.99,Time=2012/01/01 00:00:00"); // Write a flag that we reinitilised
+DataWrite("T,19.99,O,19.99,B,19.99,Time= 2012/01/01 00:00:00"); // Write a flag that we reinitilised
       
 }
 
@@ -127,11 +105,11 @@ void loop() {
   String SDcardTxt = "";             // Initilise Data stirng
   
   for(int sensor = 0; sensor <=2; sensor++){  // a loop to cycle through the sensors
-  float Temp = GetTemp(sensor);      // Call the tempreture routing
+  float Temp = GetTemp(sensor);      // Call the temperature routing
   LCDprint(sensor, Temp);            // print the result on the LCD
   SDcardTxt += SenseName[sensor][2]; // Build up data for SDcard
   SDcardTxt += ",";
-  SDcardTxt += dtostrf(Temp, 4, 2, s );
+  SDcardTxt += dtostrf(Temp, 4, 2, s ); // Convert the float to String
   SDcardTxt += ",";  
   };
 
@@ -232,7 +210,10 @@ void LCDprint(int sensor, float temp){
   lcd.setCursor(SenseLCD[sensor][0],SenseLCD[sensor][1]);  // set the cursor start location
   lcd.print(SenseName[sensor][2]);                         // Print the sensor name (Letter)
   lcd.print(" "); 
-  if(int(temp) < 10){ lcd.print(" "); }                    // Add a space if we have single digits 
+//  if(int(temp) < 10){ lcd.print(" "); }                    
+  if(int(temp) < 10 && temp > 0.0 ){                       // Check if we have single digits
+     lcd.print(" "); 
+     }                                                     // Add a space if we have single digits 
   lcd.print(temp);                                         // Print the temp passed to us.  
 }
 
@@ -253,11 +234,11 @@ float GetTemp(int sensor){
   
   // Get the temperature of the pin
   TempPin.reset();                           // Reset the network
-  TempPin.select(Sense[sensor]);                  // Select the sensor we want
+  TempPin.select(Sense[sensor]);             // Select the sensor we want
   TempPin.write(0x44);                       // start temp conversion
   delay(800);                                // maybe 750ms is enough, maybe not
   present = TempPin.reset();                 // Reset the network
-  TempPin.select(Sense[sensor]);                  // Select the sensor we want
+  TempPin.select(Sense[sensor]);             // Select the sensor we want
   TempPin.write(0xBE);                       // Read Scratchpad
  
  #ifdef TempDebug 
@@ -268,6 +249,7 @@ float GetTemp(int sensor){
  
     for ( i = 0; i < 9; i++) {                // we need 9 bytes
     mydata[i] = TempPin.read();               // Read the Onewire serial data
+    
 #ifdef TempDebug
     Serial.print(mydata[i], HEX);
     Serial.print(":");
@@ -278,7 +260,7 @@ float GetTemp(int sensor){
    LowByte = mydata[0];
   HighByte = mydata[1];
   TReading = (HighByte << 8) + LowByte;      // Get the digital value of the temp
-  SignBit = TReading & 0x8000;               // test most sig bit
+  SignBit  = TReading & 0x8000;              // test most sig bit
   if (SignBit)                               // negative
   { TReading = (TReading ^ 0xffff) + 1;  }   // 2's comp
   
