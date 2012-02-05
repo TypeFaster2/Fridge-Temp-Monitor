@@ -4,16 +4,22 @@
 * LCD Display Ethernet access                                   *
 * Logging with RTC                                              *
 *                                                               *
+* http://typefaster.tumblr.com/                                 *
 *****************************************************************/
 /*
 * Use FridgeMon_Sensor_serial to obtain the ROM code for one wire sensors (R=xxx)
-
+* Use DumpTempLogFile to dump the SD card log to the serial port
+* Use SDdataLog_delete to clear the log file
+* SD_listfile shows the files on the SD card
+* http://typefaster.tumblr.com/post/17052725855/arduino-fridge-temperature-monitor
 Version Changes:
 V1: Working Version
+V2: Corrected some comments
 
 */
 
 // Debug Code. Uncomment these to make active
+// These pump a fair amount of text to the serial port
 // #define TempDebug
 // #define TimeDebug
 // #define TextDebug
@@ -33,7 +39,6 @@ V1: Working Version
 LiquidCrystal lcd(3,5,6,7,8,9);        // Initialise LCD
 OneWire TempPin(2);                    // Initialise OneWire on pin 2
 PCF8583 p (0xA0);                      // RTC Address
-// int correct_address = 0;            // Not sure this is used. Picked up from RTC code
 
 // dtostrf(floatVar, minStringWidthIncDecimalPoint, numVarsAfterDecimal, charBuf);
 char s[32];                            // buffer for dtostrf function
@@ -42,10 +47,10 @@ char s[32];                            // buffer for dtostrf function
 // used as the CS pin, the hardware CS pin (10 on most Arduino boards,
 // 53 on the Mega) must be left as an output or the SD library
 // functions will not work.
-// Pin 4 on the Freetronics Etherten board
-const int chipSelect = 4;
+const int chipSelect = 4;            // Pin 4 on the Freetronics Etherten board
 
  // OneWire Sensor addresses. There are the three I made into modules
+ // Use FridgeMon_Sensor_serial to obtain the ROM code for one wire sensors (R=xxx)
  byte Sense[3][8] = { {0x28, 0x57, 0x8B, 0x9E, 0x03, 0x00, 0x00, 0x1E},
                       {0x28, 0xAD, 0x76, 0x9E, 0x03, 0x00, 0x00, 0xE9},
                       {0x28, 0xB8, 0x76, 0x9E, 0x03, 0x00, 0x00, 0x59} };
@@ -59,8 +64,7 @@ const int chipSelect = 4;
                         { 8, 0},     // Sensor 1
                         { 0, 1} };   // Sensor 2
                       
-// int count = 0;                      // Added counter so we can see that this is working
-  int NextMinute = 0;
+  int NextMinute = 0;                // Tracks time (minute only), so w know to write to SD card
  
 /******************* Setup **********************************/ 
 void setup() {
@@ -95,7 +99,7 @@ void setup() {
   Serial.println(NextMinute);
 #endif TextDebug
 
-DataWrite("T,19.99,O,19.99,B,19.99,Time= 2012/01/01 00:00:00"); // Write a flag that we reinitilised
+DataWrite("T,19.99,O,19.99,B,19.99,Time=,2012/01/01 00:00:00"); // Write a flag that we reinitilised
       
 }
 
@@ -115,7 +119,7 @@ void loop() {
 
   String rtc = RealTimeClock();      // get the time
   
-  SDcardTxt += "Time=, ";            // Add the time to the SDcard data
+  SDcardTxt += "Time=,";             // Add the time to the SDcard data
   SDcardTxt += rtc;
   
   rtc = rtc.substring(11);           // Strip the date off the front
