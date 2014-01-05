@@ -1,0 +1,9 @@
+Fridge Monitor is used to monitor the temperature of a refigerator using Dallas One Wire and Arduio.
+
+It's discussed in more detail at http://typefaster.tumblr.com
+
+http://typefaster.tumblr.com/post/17052725855/arduino-fridge-temperature-monitor
+
+Code is stored on github 
+
+https://github.com/TypeFaster2/Fridge-Temp-Monitor
